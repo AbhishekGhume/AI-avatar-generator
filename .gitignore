@@ -12,3 +12,5 @@ venv/
 # IDE files
 .vscode/
 
+# Wav2Lip model files (if they are large and shouldn't be pushed)
+Wav2Lip/
