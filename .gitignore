@@ -1,0 +1,14 @@
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Python virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# IDE files
+.vscode/
+
