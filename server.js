@@ -1080,7 +1080,7 @@ app.get('/api/auth/user', auth, async (req, res) => {
         const response = await fetch(groqUrl, {
           method: 'POST',
           headers: {
-            'Authorization': 'Bearer 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',
+            'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
