@@ -1,21 +1,5 @@
-// import React from 'react';
-// import { useNavigate } from 'react-router-dom';
-
-// export default function TextScript() {
-//   const navigate = useNavigate();
-
-//   return (
-//     <div style={{ padding: '20px' }}>
-//       <button onClick={() => navigate(-1)}>← Back to Dashboard</button>
-//       <h1>Text Script Input</h1>
-//       {/* Add your text script functionality here */}
-//     </div>
-//   );
-// }
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 
 const styles = {
   container: (isDark) => ({
@@ -68,6 +52,12 @@ const styles = {
     backgroundColor: '#000',
     borderRadius: '10px',
     overflow: 'hidden',
+  },
+  buttonContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: '10px',
   },
   
   placeholderVideo: (isDark) => ({
@@ -139,13 +129,16 @@ function TextScript({ isDarkMode }) {
         disabled={isGenerating}
       />
 
-      <button
-        onClick={handleGenerateVideo}
-        style={styles.button(isDarkMode, isGenerating)}
-        disabled={isGenerating}
-      >
-        {isGenerating ? 'Generating...' : 'Generate Video'}
-      </button>
+<div style={styles.buttonContainer}>
+  <button
+    onClick={handleGenerateVideo}
+    style={styles.button(isDarkMode, isGenerating)}
+    disabled={isGenerating}
+  >
+    {isGenerating ? 'Generating...' : 'Generate Video'}
+  </button>
+</div>
+
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
 

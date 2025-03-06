@@ -90,14 +90,29 @@ function Dashboard({ isDarkMode, setIsDarkMode }) {
       path: '/generate/voice-input',
     },
     {
+      title: 'Text-to-Video Generator',
+      description: 'Write script & Generate video',
+      path: '/generate/text-script',
+    },
+    {
       title: 'Audio-to-Video Creator',
       description: 'Upload Audio & Generate video',
       path: '/generate/upload-audio',
     },
     {
-      title: 'Text-to-Video Generator',
-      description: 'Write script & Generate video',
-      path: '/generate/text-script',
+      title: 'Video Dubbing',
+      description: 'Upload video and select language to generate dubbed video',
+      path: '/generate/upload-video',
+    },
+    {
+      title: 'Social Media Content Generator',
+      description: 'Select topic and generate video',
+      path: '/generate/social-media-content',
+    },
+    {
+      title: 'More Features coming soon....',
+      // description: 'Upload video and select language to generate dubbed video',
+      // path: '/generate/text-script',
     },
   ];
 
