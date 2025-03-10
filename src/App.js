@@ -6,6 +6,7 @@ import Dashboard from './components/Dashboard';
 import VoiceChatbot from './components/VoiceChatbot';
 import UploadAudio from './components/UploadAudio';
 import TextScript from './components/TextScript';
+import SocialMediaGenerator from './components/SocialMediaContent';
 import { useAuth } from './contexts/AuthContext';
 
 const PrivateRoute = ({ children }) => {
@@ -53,6 +54,14 @@ function App() {
             element={
               <PrivateRoute>
                 <TextScript isDarkMode={isDarkMode} />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/generate/social-media-content"
+            element={
+              <PrivateRoute>
+                <SocialMediaGenerator isDarkMode={isDarkMode} />
               </PrivateRoute>
             }
           />

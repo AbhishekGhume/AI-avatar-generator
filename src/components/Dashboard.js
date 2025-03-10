@@ -141,7 +141,7 @@ function Dashboard({ isDarkMode, setIsDarkMode }) {
               color: isDarkMode ? 'black' : 'white'
             }}
           >
-            {isDarkMode ? '☀️ Light' : '🌙 Dark'}
+            {isDarkMode ? '☀️' : '🌙'}
           </button>
           <button onClick={logout} style={styles.logoutButton}>
             Logout

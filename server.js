@@ -15,6 +15,8 @@ const User = require('./models/User');
 const auth = require('./middleware/auth');
 const { sendVideoEmail } = require('./utils/emailUtils');
 const multer = require('multer');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Constants and Config
 const app = express();
@@ -344,6 +346,94 @@ app.post('/chat', async (req, res) => {
     console.error('Error communicating with the Groq API:', error);
     res.status(500).send('Error processing the request');
   }
+});
+
+// 4. Social Media Content Generation Routes
+app.post('/generate-script', auth, async (req, res) => {
+  try {
+    const { topic } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Topic is required' 
+      });
+    }
+
+    // Generate script using Gemini API
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const prompt = `
+    Create a concise social media video script about "${topic}". 
+    The script should:
+    - Be 15 seconds long when read at a normal pace
+    - Have a clear introduction, middle and conclusion
+    - Be engaging and conversational
+    - Include only text that will be spoken, no camera directions
+    - Be between 35-50 words
+    - End with a strong call to action
+    `;
+
+    const result = await model.generateContent(prompt);
+    const script = result.response.text().trim();
+
+    res.json({
+      success: true,
+      script
+    });
+  } catch (error) {
+    console.error('Script generation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to generate script' 
+    });
+  }
+});
+
+app.post('/regenerate-script', auth, async (req, res) => {
+  try {
+    const { topic } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Topic is required' 
+      });
+    }
+
+    // Generate a new script with slightly different prompt
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    
+    const prompt = `
+    Create a NEW and DIFFERENT concise social media video script about "${topic}". 
+    The script should:
+    - Be 15 seconds long when read at a normal pace
+    - Have a different approach than a standard script
+    - Be engaging, attention-grabbing and conversational
+    - Include only text that will be spoken, no camera directions
+    - Be between 35-50 words
+    - End with a compelling call to action
+    `;
+
+    const result = await model.generateContent(prompt);
+    const script = result.response.text().trim();
+
+    res.json({
+      success: true,
+      script
+    });
+  } catch (error) {
+    console.error('Script regeneration error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Failed to regenerate script' 
+    });
+  }
+});
+
+app.post('/generate-social-video', auth, async (req, res) => {
+  // Re-use the existing handleVideoGeneration function
+  handleVideoGeneration(req, res, req.body.script, 'social-media');
 });
 
 // Start the server
