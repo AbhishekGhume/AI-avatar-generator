@@ -17,6 +17,10 @@ const { sendVideoEmail } = require('./utils/emailUtils');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const ffmpeg = require('fluent-ffmpeg');
+const { Deepgram } = require('@deepgram/sdk');
+const deepgram = new Deepgram(process.env.DEEPGRAM_API_KEY);
+
 
 // Constants and Config
 const app = express();
@@ -24,6 +28,7 @@ const port = 5000;
 const WAV2LIP_PATH = 'D:/voice-input-app-copy-edi/Wav2Lip';
 const PRETRAINED_MODEL_PATH = 'D:/voice-input-app-copy-edi/Wav2Lip/checkpoints/wav2lip_gan.pth';
 const INPUT_VIDEO_PATH = path.join(__dirname, 'input_video_women.mp4');
+// const INPUT_VIDEO_PATH = path.join(__dirname, 'Abhi.jpg');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
 // Initialize
@@ -48,6 +53,23 @@ const upload = multer({
       : cb(new Error('Only WAV/MP3 files are allowed'), false);
   },
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+// Configure Multer for video uploads
+const videoUpload = multer({
+  storage: multer.diskStorage({
+    destination: UPLOADS_DIR,
+    filename: (req, file, cb) => {
+      cb(null, `video_${Date.now()}${path.extname(file.originalname)}`);
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo'];
+    allowedTypes.includes(file.mimetype) 
+      ? cb(null, true)
+      : cb(new Error('Only MP4/MOV/AVI files are allowed'), false);
+  },
+  limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
 // Helper Functions
@@ -435,6 +457,192 @@ app.post('/generate-social-video', auth, async (req, res) => {
   // Re-use the existing handleVideoGeneration function
   handleVideoGeneration(req, res, req.body.script, 'social-media');
 });
+
+// Video Dubbing Route
+app.post('/generate-dubbed-video', auth, videoUpload.single('video'), async (req, res) => {
+  let videoFilePath, audioFilePath, translatedAudioPath, outputVideoPath;
+  const timestamp = Date.now();
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'No video file uploaded'
+      });
+    }
+
+    const targetLanguage = req.body.targetLanguage || 'en';
+    
+    // Create file paths
+    videoFilePath = req.file.path;
+    audioFilePath = path.join(UPLOADS_DIR, `extracted_audio_${timestamp}.wav`);
+    translatedAudioPath = path.join(UPLOADS_DIR, `translated_audio_${timestamp}.wav`);
+    outputVideoPath = path.join(UPLOADS_DIR, `dubbed_video_${timestamp}.mp4`);
+
+    // Step 1: Extract audio from video
+    await extractAudioFromVideo(videoFilePath, audioFilePath);
+    console.log(`Audio extracted: ${audioFilePath}`);
+
+    // Step 2: Transcribe audio
+    const transcription = await transcribeAudio(audioFilePath);
+    console.log('Transcription completed');
+
+    // Step 3: Translate text
+    const translatedText = await translateText(transcription, targetLanguage);
+    console.log('Translation completed');
+
+    // Step 4: Generate audio from translated text
+    await generateAudioFileDub({ text: translatedText, outputFile: translatedAudioPath, lang: targetLanguage });
+    console.log(`Translated audio generated: ${translatedAudioPath}`);
+
+    // Step 5: Merge translated audio with original video
+    await mergeAudioWithVideo(videoFilePath, translatedAudioPath, outputVideoPath);
+    console.log('Audio merged with video');
+
+    // Verify output file
+    await verifyFileExists(outputVideoPath, 30, 1000);
+
+    // Send email notification
+    try {
+      await sendVideoEmail(
+        req.user.email,
+        outputVideoPath,
+        'Your dubbed video is ready!'
+      );
+      console.log('Video email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send email:', emailError);
+    }
+
+    // Return response
+    res.json({
+      success: true,
+      videoUrl: `/uploads/${path.basename(outputVideoPath)}`,
+      emailSent: true,
+      timestamp
+    });
+
+    // Schedule cleanup
+    scheduleCleanup([audioFilePath, translatedAudioPath, outputVideoPath]);
+
+  } catch (error) {
+    console.error('Error generating dubbed video:', error);
+    
+    // Cleanup files
+    const filesToClean = [videoFilePath, audioFilePath, translatedAudioPath, outputVideoPath].filter(Boolean);
+    cleanupFiles(filesToClean);
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      emailSent: false
+    });
+  }
+});
+
+// Helper functions for audio processing
+async function extractAudioFromVideo(videoPath, outputAudioPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .output(outputAudioPath)
+      .audioCodec('pcm_s16le')
+      .audioBitrate('128k')
+      .audioChannels(1)
+      .audioFrequency(16000)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(new Error(`Audio extraction error: ${err.message}`)))
+      .run();
+  });
+}
+
+async function transcribeAudio(audioPath) {
+  const audioFile = await fsPromises.readFile(audioPath);
+  const source = { buffer: audioFile, mimetype: 'audio/wav' };
+  
+  const response = await deepgram.transcription.preRecorded(source, {
+    punctuate: true,
+    model: 'nova-2',
+  });
+  
+  return response.results.channels[0].alternatives[0].transcript;
+}
+
+async function translateText(text, targetLanguage) {
+  // console.log("Text to translate:", text);
+  return new Promise((resolve, reject) => {
+    const process = spawn('python', [
+      path.join(__dirname, 'translate_text.py'),
+      text,
+      targetLanguage
+    ]);
+
+    let result = '';
+    let errorOutput = '';
+    
+    process.stdout.on('data', (data) => {
+      result += data.toString();
+    });
+
+    process.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+      console.error(`Translation stderr: ${data}`);
+    });
+
+    process.on('close', (code) => {
+      if (code === 0) {
+        resolve(result.trim());
+      } else {
+        console.error(`Translation failed with code ${code}: ${errorOutput}`);
+        // Fallback to original text if translation fails
+        resolve(text);
+      }
+    });
+    
+    process.on('error', (err) => {
+      console.error(`Error launching translation process: ${err}`);
+      // Fallback to original text
+      resolve(text);
+    });
+  });
+}
+
+// Enhanced audio generation function with language support
+async function generateAudioFileDub({ text, outputFile, lang = 'en' }) {
+  return new Promise((resolve, reject) => {
+    const process = spawn('python', [
+      path.join(__dirname, 'generate_dubbedAudio.py'),
+      `"${text}"`,
+      outputFile,
+      lang
+    ]);
+
+    process.stdout.on('data', (data) => console.log(`stdout: ${data}`));
+    process.stderr.on('data', (data) => console.error(`stderr: ${data}`));
+
+    process.on('close', (code) => {
+      code === 0 ? resolve() : reject(new Error(`gTTS process exited with code ${code}`));
+    });
+
+    process.on('error', reject);
+  });
+}
+
+async function mergeAudioWithVideo(videoPath, audioPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(videoPath)
+      .input(audioPath)
+      .outputOptions([
+        '-map 0:v:0',
+        '-map 1:a:0',
+        '-c:v copy',
+        '-shortest'
+      ])
+      .output(outputPath)
+      .on('end', () => resolve())
+      .on('error', (err) => reject(new Error(`Video processing error: ${err.message}`)))
+      .run();
+  });
+}
 
 // Start the server
 app.listen(port, () => 

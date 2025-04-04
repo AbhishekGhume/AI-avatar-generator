@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@deepgram/sdk": "^2.1.0",
     "@google-cloud/text-to-speech": "^5.6.0",
     "@google/generative-ai": "^0.24.0",
     "@react-three/drei": "^9.114.0",

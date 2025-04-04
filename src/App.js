@@ -8,6 +8,7 @@ import UploadAudio from './components/UploadAudio';
 import TextScript from './components/TextScript';
 import SocialMediaGenerator from './components/SocialMediaContent';
 import { useAuth } from './contexts/AuthContext';
+import UploadVideo from './components/UploadVideo';
 
 const PrivateRoute = ({ children }) => {
   const { user } = useAuth();
@@ -57,6 +58,14 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+  path="/generate/upload-video"
+  element={
+    <PrivateRoute>
+      <UploadVideo isDarkMode={isDarkMode} />
+    </PrivateRoute>
+  }
+/>
           <Route
             path="/generate/social-media-content"
             element={
