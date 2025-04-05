@@ -27,8 +27,7 @@ const app = express();
 const port = 5000;
 const WAV2LIP_PATH = 'D:/voice-input-app-copy-edi/Wav2Lip';
 const PRETRAINED_MODEL_PATH = 'D:/voice-input-app-copy-edi/Wav2Lip/checkpoints/wav2lip_gan.pth';
-const INPUT_VIDEO_PATH = path.join(__dirname, 'input_video_women.mp4');
-// const INPUT_VIDEO_PATH = path.join(__dirname, 'Abhi.jpg');
+const AVATARS_DIR = path.join(__dirname, 'avatars');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
 // Initialize
@@ -37,6 +36,34 @@ initializeApp();
 
 // Initialize Google OAuth client
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+function getAvatarVideoPath(avatarId) {
+  console.log(`Getting avatar video for ID: ${avatarId}`);
+  
+  // Map of avatar IDs to their filenames
+  const avatarFiles = {
+    0: 'input_video_women.mp4',      // Default avatar
+    1: 'avatar1.jpg',         // Avatar 1
+    2: 'avatar2.jpg',         // Avatar 2
+    3: 'avatar3.jpg',         // Avatar 3
+    4: 'avatar4.jpg'          // Avatar 4
+  };
+  
+  // Get the filename for the requested avatar ID, or default to input_video.mp4
+  const avatarFileName = avatarFiles[avatarId] || avatarFiles[0];
+  
+  // Full path to the avatar video file
+  const avatarPath = path.join(AVATARS_DIR, avatarFileName);
+  
+  // Log the path to help with debugging
+  console.log(`Avatar path: ${avatarPath}`);
+  
+  // Check if the file exists and log the result
+  const fileExists = fs.existsSync(avatarPath);
+  console.log(`Avatar file exists: ${fileExists}`);
+  
+  return avatarPath;
+}
 
 // Configure Multer for audio uploads
 const upload = multer({
@@ -92,12 +119,21 @@ async function generateAudioFile({ text, outputFile }) {
   });
 }
 
-async function runWav2LipProcess(audioPath, outputPath) {
+async function runWav2LipProcess(audioPath, outputPath, avatarId = 0) {
+  // Get the avatar video path based on the avatarId
+  const avatarVideoPath = getAvatarVideoPath(avatarId+1);
+  
+  // Now use the selected avatar video path
+  return runWav2LipProcessWithAvatar(avatarVideoPath, audioPath, outputPath);
+}
+
+// Add this helper function that all routes can use
+async function runWav2LipProcessWithAvatar(avatarVideoPath, audioPath, outputPath) {
   return new Promise((resolve, reject) => {
     const wav2lipProcess = spawn('python', [
       path.join(WAV2LIP_PATH, 'inference.py'),
       '--checkpoint_path', PRETRAINED_MODEL_PATH,
-      '--face', INPUT_VIDEO_PATH,
+      '--face', avatarVideoPath,  // Use the passed avatar video path
       '--audio', audioPath,
       '--outfile', outputPath,
     ], { stdio: 'inherit', shell: true });
@@ -134,12 +170,15 @@ async function cleanupFiles(files) {
 async function handleVideoGeneration(req, res, text, prefix = 'speech') {
   let audioFilePath, outputVideoPath;
   const timestamp = Date.now();
+  
+  // Get the selected avatar ID or use default if not provided
+  const avatarId = req.body.avatarId !== undefined ? parseInt(req.body.avatarId) : 0;
 
   try {
     // Create file paths
     audioFilePath = path.join(UPLOADS_DIR, `${prefix}_${timestamp}.wav`);
     outputVideoPath = path.join(UPLOADS_DIR, `output_${timestamp}.mp4`);
-
+    
     // Ensure uploads directory exists
     await fsPromises.mkdir(UPLOADS_DIR, { recursive: true });
 
@@ -147,10 +186,11 @@ async function handleVideoGeneration(req, res, text, prefix = 'speech') {
     await generateAudioFile({ text, outputFile: audioFilePath });
     console.log(`Audio file generated: ${audioFilePath}`);
     
-    await runWav2LipProcess(audioFilePath, outputVideoPath);
+    // Pass the avatarId to runWav2LipProcess
+    await runWav2LipProcess(audioFilePath, outputVideoPath, avatarId);
     console.log('Wav2Lip process completed successfully');
 
-    // Verify output file
+    // Rest of the function remains the same
     await verifyFileExists(outputVideoPath, 30, 1000);
 
     // Send email notification
@@ -195,6 +235,22 @@ function initializeApp() {
   if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   }
+
+  // Check for avatars directory and create it if it doesn't exist
+  if (!fs.existsSync(AVATARS_DIR)) {
+    fs.mkdirSync(AVATARS_DIR, { recursive: true });
+    console.log(`Created avatars directory at: ${AVATARS_DIR}`);
+  } else {
+    console.log(`Avatars directory exists at: ${AVATARS_DIR}`);
+    
+    // List avatars directory contents for debugging
+    try {
+      const files = fs.readdirSync(AVATARS_DIR);
+      console.log('Available avatar files:', files);
+    } catch (err) {
+      console.error('Error reading avatars directory:', err);
+    }
+  }
 }
 
 // Routes
@@ -216,12 +272,16 @@ app.post('/generate-from-audio', auth, upload.single('audio'), async (req, res) 
       });
     }
 
+    const avatarId = req.body.avatarId !== undefined
+      ? parseInt(req.body.avatarId, 10)
+      : 0;
+
     const timestamp = Date.now();
     const audioFilePath = req.file.path;
     const outputVideoPath = path.join(UPLOADS_DIR, `output_${timestamp}.mp4`);
 
     // Process audio with Wav2Lip
-    await runWav2LipProcess(audioFilePath, outputVideoPath);
+    await runWav2LipProcess(audioFilePath, outputVideoPath, avatarId);
     await verifyFileExists(outputVideoPath, 30, 1000);
 
     // Send email notification
@@ -322,51 +382,6 @@ app.get('/api/auth/user', auth, async (req, res) => {
     res.json({ user });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user' });
-  }
-});
-
-// 3. Chat Route
-app.post('/chat', async (req, res) => {
-  const { prompt } = req.body;
-  const groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  const adjustedPrompt = `
-  Generate the SHORTEST possible spoken response using 5-20 words (MAX 25 words). Follow STRICTLY:
-  1. Absolute minimum words needed to answer
-  2. NO special characters of any kind
-  3. NO introductory phrases
-  4. Use ONLY periods for sentence endings
-  5. Prioritize brevity over completeness
-  6. Use simple words and contractions
-
-  Format: Single continuous sentence with NO line breaks
-  Query: "${prompt}"
-`;
-
-  try {
-    const response = await fetch(groqUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama3-8b-8192',
-        messages: [{ role: 'user', content: adjustedPrompt }],
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      const botReply = data.choices[0]?.message?.content || "I'm sorry, I couldn't understand.";
-      res.json({ response: botReply });
-    } else {
-      console.error('Error from Groq API:', data);
-      res.status(500).send('Error processing the request');
-    }
-  } catch (error) {
-    console.error('Error communicating with the Groq API:', error);
-    res.status(500).send('Error processing the request');
   }
 });
 

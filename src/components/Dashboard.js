@@ -55,12 +55,67 @@ const styles = {
     borderRadius: '50%',
     objectFit: 'cover',
   },
+  mainContent: {
+    marginTop: '80px',
+    padding: '20px',
+  },
+  videoContainer: {
+    width: '100%',
+    maxWidth: '800px',
+    height: 'auto',
+    aspectRatio: '16/9',
+    margin: '0 auto 30px',
+    backgroundColor: '#000',
+    borderRadius: '10px',
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    fontSize: '18px',
+  },
+  inputContainer: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '30px',
+  },
+  inputField: {
+    padding: '10px 15px',
+    borderRadius: '25px',
+    border: '1px solid #ddd',
+    width: '60%',
+    maxWidth: '500px',
+    fontSize: '16px',
+  },
+  actionButton: {
+    padding: '10px 15px',
+    borderRadius: '25px',
+    border: 'none',
+    backgroundColor: '#007bff',
+    color: 'white',
+    cursor: 'pointer',
+    fontSize: '16px',
+  },
+  uploadButton: {
+    padding: '10px 15px',
+    borderRadius: '25px',
+    border: 'none',
+    backgroundColor: '#6c757d',
+    color: 'white',
+    cursor: 'pointer',
+    fontSize: '16px',
+  },
+  featuresTitle: {
+    textAlign: 'center',
+    margin: '20px 0',
+    fontSize: '20px',
+  },
   cardsContainer: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
     gap: '20px',
-    padding: '20px',
-    marginTop: '80px',
   },
   card: {
     backgroundColor: '#fff',
@@ -72,6 +127,7 @@ const styles = {
     '&:hover': {
       transform: 'translateY(-5px)',
     },
+    minHeight: '150px',
   },
   darkCard: {
     backgroundColor: '#2d2d2d',
@@ -83,22 +139,7 @@ function Dashboard({ isDarkMode, setIsDarkMode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const features = [
-    {
-      title: 'AI Voice-to-Video',
-      description: 'Generate avatar video by giving voice input with groq api',
-      path: '/generate/voice-input',
-    },
-    {
-      title: 'Text-to-Video Generator',
-      description: 'Write script & Generate video',
-      path: '/generate/text-script',
-    },
-    {
-      title: 'Audio-to-Video Creator',
-      description: 'Upload Audio & Generate video',
-      path: '/generate/upload-audio',
-    },
+  const additionalFeatures = [
     {
       title: 'Video Dubbing',
       description: 'Upload video and select language to generate dubbed video',
@@ -110,13 +151,17 @@ function Dashboard({ isDarkMode, setIsDarkMode }) {
       path: '/generate/social-media-content',
     },
     {
-      title: 'More Features coming soon....',
-      // description: 'Upload video and select language to generate dubbed video',
-      // path: '/generate/text-script',
-    },
+      title: 'More Features Coming Soon...',
+      // description: 
+      // path: '/generate/social-media-content',
+    }
   ];
 
   const handleThemeToggle = () => setIsDarkMode(!isDarkMode);
+  
+  const goToVoiceInput = () => navigate('/generate/voice-input');
+  const goToTextScript = () => navigate('/generate/text-script');
+  const goToUploadAudio = () => navigate('/generate/upload-audio');
 
   return (
     <div style={{ 
@@ -149,21 +194,47 @@ function Dashboard({ isDarkMode, setIsDarkMode }) {
         </div>
       </div>
 
-      <div style={styles.cardsContainer}>
-        {features.map((feature, index) => (
-          <div
-            key={index}
-            style={{
-              ...styles.card,
-              ...(isDarkMode ? styles.darkCard : {}),
-              minHeight: '150px',
-            }}
-            onClick={() => navigate(feature.path)}
-          >
-            <h3>{feature.title}</h3>
-            <p>{feature.description}</p>
-          </div>
-        ))}
+      <div style={styles.mainContent}>
+        {/* Main Video Display Area */}
+        <div style={styles.videoContainer}>
+          Your Avatar video will appear here
+        </div>
+        
+        {/* Input Area */}
+        <div style={styles.inputContainer}>
+          <button onClick={goToVoiceInput} style={styles.actionButton}>
+            <span role="img" aria-label="microphone">🎤</span> Voice Input
+          </button>
+          <input 
+            type="text" 
+            placeholder="Type text..." 
+            style={styles.inputField}
+            onClick={goToTextScript}
+            readOnly
+          />
+          <button onClick={goToUploadAudio} style={styles.uploadButton}>
+            <span role="img" aria-label="upload">📁</span> Upload File
+          </button>
+        </div>
+        
+        {/* Additional Features */}
+        <h3 style={styles.featuresTitle}>Try more features</h3>
+        
+        <div style={styles.cardsContainer}>
+          {additionalFeatures.map((feature, index) => (
+            <div
+              key={index}
+              style={{
+                ...styles.card,
+                ...(isDarkMode ? styles.darkCard : {})
+              }}
+              onClick={() => navigate(feature.path)}
+            >
+              <h3>{feature.title}</h3>
+              <p>{feature.description}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
