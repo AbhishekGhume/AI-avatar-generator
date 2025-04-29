@@ -48,12 +48,19 @@ const styles = {
   videoContainer: {
     width: '100%',
     maxWidth: '800px',
-    height: 'auto',
-    aspectRatio: '16/9',
     margin: '20px auto',
     backgroundColor: '#000',
     borderRadius: '10px',
     overflow: 'hidden',
+    minHeight: '360px',              
+    display: 'flex',                 
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  video: {
+    width: '100%',
+    height: 'auto',
+    objectFit: 'contain',
   },
   placeholderVideo: (isDark) => ({
     width: '100%',

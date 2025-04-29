@@ -59,13 +59,13 @@ function App() {
             }
           />
           <Route
-  path="/generate/upload-video"
-  element={
-    <PrivateRoute>
-      <UploadVideo isDarkMode={isDarkMode} />
-    </PrivateRoute>
-  }
-/>
+            path="/generate/upload-video"
+            element={
+              <PrivateRoute>
+                <UploadVideo isDarkMode={isDarkMode} />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/generate/social-media-content"
             element={
