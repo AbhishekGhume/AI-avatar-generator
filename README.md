@@ -2,6 +2,9 @@
 
 A full-stack web application that enables users to interact with an AI chatbot through voice, which generates an avatar video response with lip-synchronized speech.
 
+## Working Video of Project
+- https://drive.google.com/file/d/1pSlN8DsX34teqOafZDqAVPj_5Fiq_lGp/view?usp=drive_link
+
 ## Features
 
 - Google OAuth authentication
